@@ -1,0 +1,897 @@
+(function () {
+	'use strict';
+
+	window.addEventListener('DOMContentLoaded', () => {
+		Array.from(document.querySelectorAll('img[data-src]')).map(v => v.src = v.getAttribute("data-src"));
+	});
+})();
+ccis = window.ccis || {};
+
+window.addEventListener('DOMContentLoaded', function ()
+{
+	'use strict';
+
+	if (typeof ccis.onThisPageMain == 'undefined')
+		return;
+
+	var model = null,
+		headings = [],
+		stripTags = new RegExp('<[^>]+>|\\s+', 'gi'),
+		counter = 0;
+
+	$(ccis.onThisPageMain).find('h2, h3').each(function ()
+	{
+		var $this = $(this),
+			id = $this.attr('id'),
+			$el = null;
+
+		if ($this.hasClass('cc-onthispage-skip')) return;
+
+		if (typeof id == 'undefined' || id === null)
+		{
+			id = 'cc-h' + (counter++);
+			$this.attr('id', id);
+		}
+
+		$el = $this.clone(false);
+		$el.find('.scChromeData').remove();
+		headings.push({
+			href: '#' + id,
+			text: $el.html().replace(stripTags, ' ')
+		});
+	});
+
+	model = new Vue({
+		el: '#cc-onthispage',
+		data: {
+			headings: headings
+		}
+	});
+	$('#cc-onthispage').show();
+});
+$(function ()
+{
+	'use strict';
+
+	if (screen.width < 768)
+	{
+		$('.cc-animated').each(function ()
+		{
+			var $this = $(this), classes = $this.data('animation-class').split(' ');
+			for (var i = 0; i < classes.length; $this.addClass(classes[i++]));
+		});
+	}
+	else
+	{
+		var $animated = $('.cc-animated');
+
+		$(window).on('scroll', function ()
+		{
+			if ($animated.length === 0)
+			{
+				return;
+			}
+
+			for (var i = 0; i < $animated.length; i++)
+			{
+				var $el = $($animated[i]);
+
+				if ($el.is(':inviewport'))
+				{
+					var classes = $el.data('animation-class');
+
+					if (classes !== undefined)
+					{
+						classes = classes.split(' ');
+						for (var j = 0; j < classes.length; $el.addClass(classes[j++]));
+					}
+
+					var ivfunc = $el.data('inviewport-function');
+
+					if (typeof ivfunc === 'function') ivfunc.call($animated[i]);
+
+					$animated.splice(i, 1);
+					i--;
+				}
+			}
+		});
+	}
+});
+window.addEventListener('DOMContentLoaded', function ()
+{
+	'use strict';
+
+	var $ = jQuery,
+		$breadcrumbs = $('.navbar .breadcrumb').closest('.navbar');
+
+	if ($breadcrumbs.length == 0)
+		return;
+
+	$breadcrumbs.scrollLeft($breadcrumbs[0].scrollLeftMax);
+});
+(function ($) {
+  const namespace = "autocomplete";
+  const version = "1.0.1";
+
+  if (typeof jQuery === "undefined") {
+    alert(`${namespace} version ${version} plugin requires jQuery`);
+  }
+
+  const defaults = {
+    // Text property of an array
+    textProperty: "",
+    // value propertu of an array
+    valueProperty: "",
+    // array
+    dataSource: [],
+    // default selected value
+    defaultValue: "",
+    // if text is not matched then default value
+    // notMatchedValue: '',
+    // delay in mili seconds seach text while typing
+    keyboardDelay: 500,
+    // close the dropdown on select
+    closeOnSelect: true,
+    // allow custom value
+    allowCustomValue: false,
+    // Show autocomplete on textbox focus
+    showDropdownOnFocus: true,
+    // Show dropdown on initialize autocomplete
+    showDropdownOnLoad: false,
+    // Add custom class to selected item
+    selectedClass: "",
+    // Add a custom class to autocomplete dropdown
+    wrapClass: "",
+    // function to excute on click
+    onClick: null,
+    // function to exute on value change
+    onChange: null,
+  };
+
+  const variables = {
+    dataUID: "data-uid",
+    dataIndex: "data-index",
+    dataValue: "data-value",
+    listTemplate: '<ul class="autocomplete-list">',
+    showSearchResult: "show",
+    itemTag: "li",
+    itemClass: "autocomplete-item",
+    selectedClass: "selected",
+    eventKeyUp: "keyup." + namespace,
+    eventKeyDown: "keydown." + namespace,
+    eventOnClick: "click." + namespace,
+    eventOnFocus: "focus." + namespace,
+    eventOnChange: "change." + namespace,
+    eventOnBlur: "blur." + namespace,
+  };
+
+  /**
+   * All the events for autocomple
+   */
+  const handlers = {
+    // On Item selected event
+    onItemSelected: function (e) {
+      e.preventDefault();
+      const selectedItem = $(e.target),
+        $this = this,
+        itemsList = $this.list.find(`.${variables.itemClass}`),
+        classes = [];
+
+      classes.push(variables.selectedClass);
+      if ($this.options.selectedClass) {
+        classes.push($this.options.selectedClass);
+      }
+
+      itemsList.removeClass(classes.join(" "));
+      selectedItem.addClass(classes.join(" "));
+
+      $this.searchBox.val($.trim(selectedItem.text()));
+      const index = parseInt(selectedItem.attr(variables.dataIndex));
+      if (index || index === 0) {
+        $this.data = $this.dataSource[index];
+        $this.searchBox.selectedData = $this.data;
+      }
+      if ($this.options.closeOnSelect) {
+        $this.hide();
+      } else {
+        $this.show();
+      }
+
+      if ($this.options.onClick && $.isFunction($this.options.onClick)) {
+        $this.options.onClick($this.data);
+      }
+
+      if ($this.options.onChange && $.isFunction($this.options.onChange)) {
+        $this.options.onChange($this.data);
+      }
+    },
+    onSearchBoxKeyUp: function () {
+      const $this = this,
+        searchBox = $this.searchBox;
+
+      $this.filterData(searchBox.val());
+    },
+    onSearchBoxLeave: function () {
+      const $this = this;
+    },
+    onSearchBoxFocus: function () {
+      const $this = this;
+
+      if ($this.options.showDropdownOnFocus) {
+        $this.show();
+        return;
+      }
+
+      $this.hide();
+    },
+    onSearchBoxValueChange: function () {
+      const $this = this,
+        searchBox = $this.searchBox;
+
+      $this.filterData(searchBox.val());
+
+      if ($this.options.onChange && $.isFunction($this.options.onChange)) {
+        $this.options.onChange($this.data);
+      }
+    },
+    globalClick: function (e) {
+      const $this = this,
+        searchBox = $this.searchBox,
+        element = $this.element;
+      let target = e.target,
+        hidden = true;
+
+      if (target !== document) {
+        while (
+          target === element ||
+          $(target).closest(".autocomplete").length === 1
+        ) {
+          hidden = false;
+          break;
+        }
+
+        target = target.parentNode;
+      }
+
+      if (hidden) {
+        if (!$this.options.allowCustomValue && !$this.data) {
+          searchBox.val("");
+          $this.filterData("");
+        }
+
+        $this.hide();
+      }
+    },
+  };
+  /**
+   * All the methods for autocomplete
+   */
+  const methods = {
+    createItem: function (data) {
+      const item = {
+        text: "",
+        value: "",
+        selected: false,
+        index: 0,
+        isShow: true,
+      };
+      $.extend(item, data);
+      const $this = this,
+        classes = [];
+      if (item.selected) {
+        classes.push(variables.selectedClass);
+        classes.push(this.options.selectedClass);
+        $this.searchBox.val($.trim(item.text));
+
+        if (item.index || item.index === 0) {
+          $this.data = $this.dataSource[item.index];
+          $this.searchBox.selectedData = $this.data;
+        }
+      }
+
+      return `<${variables.itemTag} class="${variables.itemClass}
+    ${classes.join(" ")}" ${variables.dataValue}="${item.value}" ${
+        variables.dataIndex
+      }="${item.index}">
+    ${item.text}</${variables.itemTag}>`;
+    },
+    delay: function (func, wait, immediate) {
+      let timeout;
+      return function (...args) {
+        clearTimeout(timeout);
+        if (!immediate) {
+          timeout = setTimeout(func.bind(this, ...args), wait || 0);
+        } else {
+          timeout = func.bind(this, ...args);
+        }
+      };
+    },
+    matchArray: function (val, arrData) {
+      const $this = this;
+      return arrData.filter(function (x) {
+        return (
+          x[$this.options.textProperty] &&
+          x[$this.options.textProperty]
+            .toLowerCase()
+            .indexOf(val.toLowerCase()) > -1
+        );
+      });
+    },
+    filterData: function (val) {
+      const $this = this,
+        inputText = val ? $.trim(val).toLowerCase() : null,
+        classes = [];
+
+      classes.push(variables.selectedClass);
+      if ($this.options.selectedClass) {
+        classes.push($this.options.selectedClass);
+      }
+
+      let itemsList = $this.list.find(`.${variables.itemClass}`);
+      itemsList.removeClass(classes.join(" "));
+
+      if (inputText) {
+        itemsList = itemsList.filter(function (index, item) {
+          return (
+            inputText && $(item).text().toLowerCase().indexOf(inputText) > -1
+          );
+        });
+      }
+
+      if ($this.options.allowCustomValue) {
+        $this.data = val;
+        $this.searchBox.selectedData = val;
+      } else {
+        $this.data = null;
+        $this.searchBox.selectedData = null;
+      }
+
+      if (itemsList && itemsList.length > 0) {
+        itemsList.show();
+        const selectedItem = $(itemsList[0]);
+        if (
+          itemsList.length === 1 &&
+          $.trim(selectedItem.text().toLowerCase()) === inputText
+        ) {
+          selectedItem.trigger(variables.eventOnClick);
+        }
+      }
+      $this.list.find(`.${variables.itemClass}`).not(itemsList).hide();
+
+      $this.show();
+    },
+    show: function () {
+      this.list.addClass(variables.showSearchResult);
+    },
+    hide: function () {
+      this.list.removeClass(variables.showSearchResult);
+    },
+  };
+
+  const Autocomplete = (function () {
+    function Autocomplete(el, options) {
+      const $this = this;
+      $this.searchBox = $(el);
+      $this.searchBox.selectedData = "data";
+      $this.element = null;
+      $this.options = $.extend({}, defaults, options);
+      $this.list = $(variables.listTemplate);
+      $this.dataSource = $this.options.dataSource;
+      $this.data = null;
+      $this.init();
+    }
+
+    Autocomplete.prototype = {
+      /**
+       * constructor
+       * intialize the autocomplete plugin
+       * @returns {null}
+       */
+      init: function () {
+        const options = this.options;
+        this.searchBox.wrap(`<div class="autocomplete ${options.wrapClass}">`);
+        this.element = this.searchBox.parent();
+        this.element.append(this.list);
+        this.load(this.dataSource);
+        this.bind();
+      },
+      load: function (dataSource, isServerData) {
+        const $this = this,
+          options = this.options,
+          classes = [];
+
+        let arrData = dataSource;
+
+        if (!arrData || arrData.length < 1) {
+          $this.list.find(`.${variables.itemClass}`).hide();
+        }
+
+        const itemsList = [];
+        arrData.forEach(function (element, index) {
+          const items = {
+            text: element[options.textProperty],
+            value: element[options.valueProperty],
+            selected: false,
+            index: index,
+          };
+          items.selected =
+            items.value &&
+            items.value.toString().toLowerCase() == options.defaultValue;
+
+          itemsList.push($this.createItem(items));
+        });
+
+        $this.list.html("");
+        $this.list.html(itemsList.join(" "));
+        $this.filterData($this.searchBox.val());
+
+        if ($this.options.showDropdownOnLoad) {
+          // $this.show();
+          $this.options.showDropdownOnLoad = false;
+          return;
+        }
+
+        $this.hide();
+      },
+      bind: function () {
+        this.searchBox.on(
+          variables.eventKeyUp,
+          this.delay($.proxy(this.onSearchBoxKeyUp, this), this.keyboardDelay)
+        );
+        this.element.on(
+          variables.eventOnClick,
+          `.${variables.itemClass}`,
+          $.proxy(this.onItemSelected, this)
+        );
+
+        this.searchBox.on(
+          variables.eventOnFocus,
+          $.proxy(this.onSearchBoxFocus, this)
+        );
+        this.searchBox.on(
+          variables.eventOnBlur,
+          $.proxy(this.onSearchBoxLeave, this)
+        );
+        this.searchBox.on(
+          variables.eventOnChange,
+          $.proxy(this.onSearchBoxValueChange, this)
+        );
+
+        $(document).on(variables.eventOnClick, $.proxy(this.globalClick, this));
+      },
+      /**
+       * destory the autocomplete plugin
+       *
+       */
+      destroy: function () {},
+    };
+
+    return Autocomplete;
+  })();
+
+  if ($.extend) {
+    $.extend(Autocomplete.prototype, methods, handlers);
+  }
+
+  if ($.fn) {
+    $.fn.autocomplete = function (options) {
+      // Validate Options
+      if (
+        !options ||
+        !options.textProperty ||
+        !options.valueProperty ||
+        !options.dataSource
+      ) {
+        throw `${namespace} - Invalid data`;
+        return false;
+      }
+
+      this.each(function (index, element) {
+        const searchBox = $(element);
+        searchBox.selectedData = "data";
+        let data = searchBox.data(namespace);
+        if (!data) {
+          // remove the default autocomplete
+          // TODO check for remove default autocomplete
+          searchBox.attr("novalidate", true);
+          searchBox.attr(variables.dataUID, `${namespace}-${index}`);
+          data = new Autocomplete(element, options);
+          searchBox.data(namespace, data);
+        }
+      });
+
+      return this;
+    };
+
+    $.fn.autocomplete.constractor = Autocomplete;
+    //   $.fn.autocomplete = Autocomplete;
+  }
+})(jQuery);
+
+(function ()
+{
+	'use strict';
+
+	$.extend($.expr[':'], {
+		// element is within the viewport (even partially)
+		'inviewport': function (el)
+		{
+			var $el = $(el),
+				h = $el.outerHeight(),
+				t = $el.offset().top,
+				b = t + h,
+				s = $(document).scrollTop(),
+				w = $(window).height(),
+				W = s + w;
+
+			// either top or bottom edge is within viewport
+			return ((t >= s && t <= W) || (b >= s && b <= W));
+		}
+		// element is fully in view
+		, 'infullview': function (el)
+		{
+			var $el = $(el),
+				h = $el.outerHeight(),
+				t = $el.offset().top,
+				b = t + h,
+				s = $(document).scrollTop(),
+				w = $(window).height(),
+				W = s + w;
+
+			// top and bottom edges are within viewport
+			return (t >= s && t <= W && b >= s && b <= W);
+		}
+		// element has been reached (or passed) during scroll
+		, 'reached': function (el)
+		{
+			var $el = $(el),
+				h = $el.outerHeight(),
+				t = $el.offset().top,
+				b = t + h,
+				s = $(document).scrollTop(),
+				w = $(window).height(),
+				W = s + w;
+
+			// scroll position is at or beyond top edge
+			return (s >= t);
+		}
+	});
+})();
+window.addEventListener('DOMContentLoaded', function () {
+    'use strict';
+
+    var $menu = $('nav.ng-menu'),
+        $categories = $menu.find('.ng-categories-wrapper');
+
+    $menu.find('> .ng-menu-button').on('click', function () {
+        $menu
+            .data('active-element', document.activeElement)
+            .find('.ng-categories-wrapper').show(0, function () { $menu.find('.ng-menu-close').focus(); });
+    });
+
+    $menu.find('.ng-menu-close').on('click', function () {
+        $menu.find('.ng-categories-wrapper').attr('style', "");
+        //$menu.find('.ng-categories-wrapper').hide();
+        $($menu.data('active-element')).focus();
+    });
+
+    $menu.find('.ng-plus, .ng-search a.ng-category-title').on('click', function (e) {
+        var $this = $(this);
+
+        e.preventDefault();
+
+        if ($this.hasClass('ng-plus'))
+            $this.toggleClass('ng-minus');
+
+        $this.closest('.ng-category').find('.ng-dropdown').toggle();
+    });
+
+    // close on blur
+    $categories.on('blur', function () {
+        if (!window.matchMedia('(max-width: 768px)').matches) return;
+
+        $(this).hide();
+        $($menu.data('active-element')).focus();
+    });
+
+    $(document).on('click', function (e) {
+        var $target = $(e.target);
+
+        if (!$target.is('.ng-menu-button')
+            && $target.closest('.ng-categories-wrapper').length === 0
+            && $categories.is(':visible')) {
+            $categories.blur();
+        }
+
+        return true;
+    });
+
+    // keyboard navigation
+
+    var KEY_ENTER = 13,
+        KEY_SPACE = 32,
+        KEY_LEFT = 37,
+        KEY_UP = 38,
+        KEY_RIGHT = 39,
+        KEY_DOWN = 40,
+        KEY_ESC = 27;
+
+    $menu.on('keydown', function (e) {
+        var $target = $(e.originalEvent.target),
+            $next = [];
+
+        switch (e.originalEvent.which) {
+            case KEY_ESC:
+                $(document.activeElement).blur();
+                e.stopPropagation();
+                e.preventDefault();
+                return false;
+
+            case KEY_SPACE:
+                if (!$target.is('.ng-category-title'))
+                    return true;
+
+                $next = $target.closest('.ng-category').find('.ng-dropdown a[tabindex!="-1"]:first');
+                break;
+
+            case KEY_RIGHT:
+                if ($target.is('.ng-feature-body a')) {
+                    // first link in first group
+                    $next = $target.closest('.ng-category').find('.ng-dropdown-link:first a');
+
+                    // next category
+                    if ($next.length == 0)
+                        $next = $target.closest('.ng-category').next('.ng-category').find('.ng-category-title');
+                }
+                else if ($target.is('.ng-category-title')) {
+                    // next category
+                    $next = $target.closest('.ng-category').next('.ng-category').find('.ng-category-title');
+                }
+                else if ($target.is('.ng-dropdown-link a')) {
+                    // first link in next group
+                    $next = $target.closest('.ng-list-group').next('.ng-list-group').find('a:first');
+
+                    // next category
+                    if ($next.length == 0)
+                        $next = $target.closest('.ng-category').next('.ng-category').find('.ng-category-title');
+                }
+
+                break;
+
+            case KEY_LEFT:
+                if ($target.is('.ng-feature-body a')) {
+                    // parent category
+                    $next = $target.closest('.ng-category').find('.ng-category-title');
+                }
+                else if ($target.is('.ng-category-title')) {
+                    // previous category
+                    $next = $target.closest('.ng-category').prev('.ng-category').find('.ng-category-title');
+                }
+                else if ($target.is('.ng-dropdown-link a')) {
+                    // first link in previous group
+                    $next = $target.closest('.ng-list-group').prev('.ng-list-group').find('a:first');
+
+                    // feature
+                    if ($next.length == 0)
+                        $next = $target.closest('.ng-category').find('.ng-feature-body a[tabindex!="-1"]:last');
+
+                    // parent category
+                    if ($next.length == 0)
+                        $next = $target.closest('.ng-category').find('.ng-category-title');
+                }
+
+                break;
+
+            case KEY_UP:
+                if ($target.is('.ng-feature-body a')) {
+                    // parent category
+                    $next = $target.closest('.ng-category').find('.ng-category-title');
+                }
+                else if ($target.is('.ng-dropdown-link a')) {
+                    // previous link in list
+                    $next = $target.parent().prev('.ng-dropdown-link').find('a');
+
+                    // last link in previous group
+                    if ($next.length == 0)
+                        $next = $target.closest('.ng-list-group').prev('.ng-list-group').find('a:last');
+
+                    // feature
+                    if ($next.length == 0)
+                        $next = $target.closest('.ng-category').find('.ng-feature-body a[tabindex!="-1"]:last');
+
+                    // parent category
+                    if ($next.length == 0)
+                        $next = $target.closest('.ng-category').find('.ng-category-title');
+                }
+                else if ($target.is('.ng-category-title')) {
+                    // previous category
+                    $next = $target.closest('.ng-category').prev('.ng-category').find('.ng-category-title');
+                }
+
+                break;
+
+            case KEY_DOWN:
+                if ($target.is('.ng-feature-body a')) {
+                    // first link in first list
+                    $next = $target.closest('.ng-category').find('.ng-dropdown-link:first a');
+
+                    // next category
+                    if ($next.length == 0)
+                        $next = $target.closest('.ng-category').next('.ng-category').find('.ng-category-title');
+                }
+                else if ($target.is('.ng-dropdown-link a')) {
+                    // next link in list
+                    $next = $target.parent().next('.ng-dropdown-link').find('a');
+
+                    // first link in next group
+                    if ($next.length == 0)
+                        $next = $target.closest('.ng-list-group').next('.ng-list-group').find('a:first');
+
+                    // next category
+                    if ($next.length == 0)
+                        $next = $target.closest('.ng-category').next('.ng-category').find('.ng-category-title');
+                }
+                else if ($target.is('.ng-category-title')) {
+                    // first link in category
+                    $next = $target.closest('.ng-category').find('.ng-dropdown a[tabindex!="-1"]:first');
+                }
+
+                break;
+
+            default:
+                return true;
+        }
+
+        if ($next.length > 0) {
+            $next.focus();
+            e.stopPropagation();
+            e.preventDefault();
+
+            return false;
+        }
+
+        return true;
+    });
+
+    // search
+
+    var $search = $('.ng-search .ng-search-dropdown');
+
+    $('.ng-search .ng-search-button').on('click', function () {
+        $search.toggle();
+
+        if ($search.is(':visible')) {
+            $search.data('active-element', document.activeElement);
+            setTimeout(function () { $search.find('input').focus(); }, 1000);
+        }
+        else {
+            $($search.data('active-element')).focus();
+        }
+
+        return true;
+    });
+
+    // close on blur OR scroll
+    $(document).on('click scroll', function (e) {
+        var $target = $(e.target);
+
+        if ($search.is(':visible')
+            && $target.closest('.ng-search').length === 0
+            && !$target.is('.ng-search-button')) {
+            $search.blur();
+        }
+
+        return true;
+    });
+
+    $search.on('blur', function () { $search.hide(); });
+});
+(() => {
+	'use strict';
+
+	document.addEventListener('DOMContentLoaded', () =>
+		document.querySelectorAll('.btn-military-chat').forEach((v, i, a) => v.addEventListener('click', () =>
+			window.open('https://libraryh3lp.com/chat/veteran_servicess-queue@chat.libraryh3lp.com?identity=Operator&skin=25627&sounds=true',
+				'newwindow', 'height=500, width=275, toolbar=no, menubar=no, titlebar=no, scrollbars=no, resizable=no, location=no, directories=no, status=no, addressbar=no'))));
+})();
+
+window.addEventListener('DOMContentLoaded', function () {
+	'use strict';
+
+	var $mobile = $('.cg-desktop-hide:first'),
+		wasMobile = false,
+		$menus = $('.ng-left-menu > .ng-left-menu-list'),
+		buffered = false;
+
+	// collapse left menu subs by default on mobile
+	function onResize() {
+		var isMobile = $mobile.is(':visible');
+
+		if (isMobile && !wasMobile)
+			$menu.collapse('hide');
+		else if (!isMobile && wasMobile)
+			$menu.collapse('show');
+
+		wasMobile = isMobile;
+	}
+
+	$(window).on('resize', function () {
+		clearTimeout(buffered);
+		buffered = setTimeout(onResize, 250);
+	});
+
+	onResize();
+
+	// close on blur
+	$(document).on('click', function (e) {
+		var $target = $(e.target);
+
+		if ($menus.hasClass('d-block')
+			&& $target.closest('.ng-left-menu-list').length === 0
+			&& !$target.is('.ng-expand-button')
+			&& !$target.is('.ng-mobile-expand')) {
+			$menus.removeClass('d-block');
+			$($menus.data('active-element')).focus();
+		}
+
+		return true;
+	});
+
+	$menus.on('blur', function () { $($menus.data('active-element')).focus(); });
+
+	// toggle menu sections on tap
+	$('.ng-left-menu .ng-mobile-expand').on('click', function () {
+		var $this = $(this),
+			$parent = $this.closest('.ng-left-menu-item'),
+			$menu = null,
+			vis = false;
+
+		if ($parent.length === 0)
+			$parent = $this.closest('.ng-left-menu');
+
+		$menu = $parent.find('.ng-left-menu-list:first');
+		vis = $menu.is(':visible');
+		$this.attr('aria-expanded', !vis);
+		$menu.toggleClass('d-block', !vis);
+
+		return true;
+	});
+});
+// tabs handler solutions from:
+// https://stackoverflow.com/questions/7862233/twitter-bootstrap-tabs-go-to-specific-tab-on-page-reload-or-hyperlink
+
+(function () {
+	'use strict';
+
+	const ccis = window.ccis || {};
+
+	ccis.handleUpdate = function (evt, selector) {
+		const $root = (!selector ? $(evt.target) : $(selector));
+
+		// set URL hash on tab click
+		$root.find('a[data-toggle="tab"]').on('click', e => {
+			window.location.hash = e.target.hash;
+		});
+
+		$root.find('[data-toggle="popover"]').popover();
+		$root.find('[data-toggle="tooltip"]').tooltip();
+	};
+
+	window.ccis = ccis;
+
+	if (/Trident\/|MSIE /.test(window.navigator.userAgent))
+		$('html').addClass('ie');
+
+	// miscellaneous, site-wide functionality
+	window.addEventListener('DOMContentLoaded', ccis.handleUpdate);
+
+	window.addEventListener('DOMContentLoaded', () => {
+		// go to tab
+		if (window.location.hash) {
+			var $el = $(`.nav-tabs a[href="${window.location.hash}"]`).trigger('click');
+
+			if ($el.length)
+				$el[0].scrollIntoView();
+		}
+	});
+})();
